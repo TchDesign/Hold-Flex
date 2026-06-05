@@ -1,0 +1,276 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+#scene{
+  background:#C0C4C8;border-radius:16px;width:100%;aspect-ratio:16/9;
+  position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;
+}
+#layout{
+  position:absolute;inset:0;
+  display:grid;
+  grid-template-columns:1fr 2fr 1fr;
+  grid-template-rows:auto 1fr auto;
+  padding:4% 5%;
+}
+#top-left{grid-column:1;grid-row:1;display:flex;flex-direction:column;justify-content:flex-start;gap:2px;}
+#top-centre{grid-column:2;grid-row:1;display:flex;justify-content:center;align-items:flex-start;}
+#top-right{grid-column:3;grid-row:1;display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+#mid{grid-column:1/4;grid-row:2;display:flex;align-items:center;justify-content:center;gap:6%;}
+#bot{grid-column:1/4;grid-row:3;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.hud-label{font-size:clamp(10px,1.3vw,12px);color:rgba(26,26,26,0.5);font-family:system-ui,sans-serif;letter-spacing:0.04em;text-transform:uppercase;}
+.hud-value{font-size:clamp(15px,2.2vw,22px);font-weight:700;color:#1a1a1a;font-family:system-ui,sans-serif;line-height:1;}
+#state-label{font-size:clamp(11px,1.6vw,15px);font-weight:400;color:#1a1a1a;font-family:system-ui,sans-serif;white-space:nowrap;opacity:0.8;}
+#feedback-label{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:clamp(20px,3.5vw,38px);font-weight:700;color:#ffffff;
+  letter-spacing:0.1em;opacity:0;font-family:Georgia,serif;
+  transition:opacity 0.2s;white-space:nowrap;pointer-events:none;
+  text-shadow:0 1px 12px rgba(0,0,0,0.18);
+}
+#hold-btn{
+  width:clamp(90px,16vw,148px);height:clamp(30px,4.5vw,40px);
+  border-radius:40px;border:1.5px solid #3A9E8F;
+  background:rgba(58,158,143,0.12);
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(11px,1.4vw,13px);font-weight:500;color:#1a1a1a;
+  font-family:system-ui,sans-serif;cursor:pointer;
+  transition:background 0.12s;touch-action:none;
+}
+#hold-btn.pressed{background:rgba(58,158,143,0.32);border-color:#2a8070;}
+#angle-bar{width:100%;display:flex;align-items:center;gap:8px;}
+#bar-track{flex:1;position:relative;height:5px;background:rgba(26,26,26,0.12);border-radius:4px;}
+#bar-fill{height:100%;width:0%;background:#3A9E8F;border-radius:4px;}
+#zone-mark{position:absolute;top:-3px;height:11px;background:rgba(58,158,143,0.22);border:1px solid #3A9E8F;border-radius:2px;pointer-events:none;}
+#angle-pip{position:absolute;top:-5px;width:3px;height:15px;background:#1a1a1a;border-radius:2px;transform:translateX(-50%);left:0%;}
+.bar-end{font-size:11px;color:rgba(26,26,26,0.45);font-family:system-ui,sans-serif;white-space:nowrap;}
+#deg-readout{font-size:clamp(12px,1.5vw,14px);font-weight:500;min-width:34px;text-align:right;color:#1a1a1a;font-family:system-ui,sans-serif;}
+#hint{font-size:clamp(10px,1.2vw,11px);color:rgba(26,26,26,0.4);font-family:system-ui,sans-serif;text-align:center;}
+@keyframes starRay{0%{opacity:1;transform:scale(0.3);}70%{opacity:0.9;transform:scale(1);}100%{opacity:0;transform:scale(1.4);}}
+@keyframes ringPulse{0%,100%{stroke-opacity:0.9;}50%{stroke-opacity:0.2;}}
+@keyframes bounce{0%{transform:scale(1);}30%{transform:scale(1.12);}60%{transform:scale(0.95);}100%{transform:scale(1);}}
+@keyframes scoreFloat{0%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-40px);}}
+.star-ray{opacity:0;}
+.star-ray.burst{animation:starRay 0.55s ease-out forwards;}
+.rd0{animation-delay:0s;}.rd1{animation-delay:0.03s;}.rd2{animation-delay:0.06s;}.rd3{animation-delay:0.09s;}
+.rd4{animation-delay:0.12s;}.rd5{animation-delay:0.05s;}.rd6{animation-delay:0.08s;}.rd7{animation-delay:0.02s;}
+#glow-ring{stroke-opacity:0;transition:stroke-opacity 0.3s;}
+#glow-ring.active{animation:ringPulse 0.9s ease-in-out infinite;}
+#joint-group.bounce{animation:bounce 0.45s ease-out forwards;}
+.score-float{
+  position:absolute;font-weight:700;font-family:Georgia,serif;pointer-events:none;
+  animation:scoreFloat 1.1s ease-out forwards;font-size:clamp(14px,2vw,20px);
+}
+</style>
+
+<h2 class="sr-only">Hold-to-aim ROM dart game. Press and hold the button to flex the joint toward 65 degrees. Hold steady in the target zone for 5 seconds to throw a dart.</h2>
+
+<div id="scene">
+<div id="layout">
+
+  <div id="top-left">
+    <span class="hud-label">Round</span>
+    <span class="hud-value" id="round-num">1</span>
+  </div>
+  <div id="top-centre">
+    <span id="state-label">Press &amp; hold to flex</span>
+  </div>
+  <div id="top-right">
+    <span class="hud-label">Score</span>
+    <span class="hud-value" id="score-num">0</span>
+  </div>
+
+  <div id="mid">
+    <svg viewBox="0 0 120 220" fill="none" style="width:18%;max-width:120px;flex-shrink:0;overflow:visible;">
+      <g id="star-group" transform="translate(60,85)">
+        <line class="star-ray rd0" x1="0" y1="-22" x2="0" y2="-44" stroke="#00E5BE" stroke-width="2.5" stroke-linecap="round"/>
+        <line class="star-ray rd1" x1="16" y1="-16" x2="31" y2="-31" stroke="#00E5BE" stroke-width="2" stroke-linecap="round"/>
+        <line class="star-ray rd2" x1="22" y1="0" x2="44" y2="0" stroke="#00E5BE" stroke-width="2.5" stroke-linecap="round"/>
+        <line class="star-ray rd3" x1="16" y1="16" x2="31" y2="31" stroke="#00E5BE" stroke-width="2" stroke-linecap="round"/>
+        <line class="star-ray rd4" x1="0" y1="22" x2="0" y2="44" stroke="#00E5BE" stroke-width="2.5" stroke-linecap="round"/>
+        <line class="star-ray rd5" x1="-16" y1="16" x2="-31" y2="31" stroke="#00E5BE" stroke-width="2" stroke-linecap="round"/>
+        <line class="star-ray rd6" x1="-22" y1="0" x2="-44" y2="0" stroke="#00E5BE" stroke-width="2.5" stroke-linecap="round"/>
+        <line class="star-ray rd7" x1="-16" y1="-16" x2="-31" y2="-31" stroke="#00E5BE" stroke-width="2" stroke-linecap="round"/>
+      </g>
+      <circle id="glow-ring" cx="60" cy="85" r="22" stroke="#00E5BE" stroke-width="3" fill="none"/>
+      <g id="joint-group" style="transform-origin:60px 85px;">
+        <rect x="51" y="10" width="18" height="75" rx="9" fill="#9DBDD0"/>
+        <ellipse cx="60" cy="85" rx="14" ry="14" fill="#8BB0C4"/>
+        <ellipse cx="60" cy="85" rx="8" ry="8" fill="#9DBDD0"/>
+        <g id="lower-seg" style="transform-origin:60px 85px;">
+          <rect x="51" y="85" width="18" height="75" rx="9" fill="#9DBDD0"/>
+        </g>
+      </g>
+      <text id="angle-disp" x="60" y="212" text-anchor="middle" fill="#1a1a1a" font-size="11" font-family="system-ui,sans-serif" opacity="0.55">0°</text>
+    </svg>
+
+    <svg viewBox="0 0 200 210" fill="none" style="width:34%;max-width:200px;flex-shrink:0;overflow:visible;">
+      <circle cx="100" cy="100" r="88" fill="#B0B5B8" opacity="0.28"/>
+      <circle cx="100" cy="100" r="66" fill="#C8CCCE" opacity="0.32"/>
+      <circle id="zone-fill" cx="100" cy="100" r="44" fill="#3A9E8F" opacity="0.18"/>
+      <circle cx="100" cy="100" r="22" fill="#3A9E8F" opacity="0.28"/>
+      <circle cx="100" cy="100" r="10" fill="#3A9E8F" opacity="0.55"/>
+      <circle cx="100" cy="100" r="88" stroke="rgba(26,26,26,0.15)" stroke-width="0.8" fill="none"/>
+      <circle cx="100" cy="100" r="66" stroke="rgba(26,26,26,0.15)" stroke-width="0.8" fill="none"/>
+      <circle id="zone-stroke" cx="100" cy="100" r="44" stroke="#3A9E8F" stroke-width="1.5" fill="none"/>
+      <circle cx="100" cy="100" r="22" stroke="#3A9E8F" stroke-width="1" fill="none"/>
+      <circle cx="100" cy="100" r="10" stroke="#3A9E8F" stroke-width="1" fill="none"/>
+      <g id="reticle">
+        <circle cx="100" cy="100" r="16" stroke="#1a1a1a" stroke-width="1.5" fill="none" opacity="0.7"/>
+        <line x1="100" y1="80" x2="100" y2="91" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+        <line x1="100" y1="109" x2="100" y2="120" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+        <line x1="80" y1="100" x2="91" y2="100" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+        <line x1="109" y1="100" x2="120" y2="100" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+        <circle cx="100" cy="100" r="2.5" fill="#1a1a1a" opacity="0.75"/>
+      </g>
+      <circle id="hold-arc" cx="100" cy="100" r="16"
+        stroke="#00E5BE" stroke-width="3" stroke-linecap="round"
+        stroke-dasharray="100.5" stroke-dashoffset="100.5"
+        transform="rotate(-90 100 100)" fill="none" opacity="0"/>
+      <g id="dart-hits"></g>
+      <text x="100" y="200" text-anchor="middle" fill="#1a1a1a" font-size="10" font-family="system-ui,sans-serif" opacity="0.45">65° ± <tspan id="margin-txt">5</tspan>°</text>
+    </svg>
+  </div>
+
+  <div id="bot">
+    <div id="hold-btn">Hold to flex</div>
+    <div id="angle-bar">
+      <span class="bar-end">0°</span>
+      <div id="bar-track">
+        <div id="bar-fill"></div>
+        <div id="zone-mark"></div>
+        <div id="angle-pip"></div>
+      </div>
+      <span class="bar-end">120°</span>
+      <span id="deg-readout">0°</span>
+    </div>
+    <div id="hint">hold → joint flexes to 65° · release → springs back · stay in zone 5s to throw</div>
+  </div>
+
+</div>
+
+<div id="feedback-label">BULLSEYE</div>
+</div>
+
+<script>
+const holdBtn=document.getElementById('hold-btn');
+const stateLabel=document.getElementById('state-label');
+const feedbackLabel=document.getElementById('feedback-label');
+const scoreNum=document.getElementById('score-num');
+const roundNum=document.getElementById('round-num');
+const lowerSeg=document.getElementById('lower-seg');
+const angleDisp=document.getElementById('angle-disp');
+const glowRing=document.getElementById('glow-ring');
+const jointGroup=document.getElementById('joint-group');
+const rays=document.querySelectorAll('.star-ray');
+const reticle=document.getElementById('reticle');
+const holdArc=document.getElementById('hold-arc');
+const dartHits=document.getElementById('dart-hits');
+const zoneFill=document.getElementById('zone-fill');
+const zoneStroke=document.getElementById('zone-stroke');
+const marginTxt=document.getElementById('margin-txt');
+const barFill=document.getElementById('bar-fill');
+const zoneMark=document.getElementById('zone-mark');
+const anglePip=document.getElementById('angle-pip');
+const degReadout=document.getElementById('deg-readout');
+const scene=document.getElementById('scene');
+
+const TARGET=65,MAX_DEG=120,BASE_MARGIN=5,HOLD_MS=5000,HOLD_CIRC=100.5;
+let score=0,round=1,margin=BASE_MARGIN;
+let isHeld=false,deg=0,vel=0;
+let wobbleX=0,wobbleY=0,wobbleVX=0,wobbleVY=0;
+let holdStart=null,cooldown=false,feedbackTimeout=null,lastState='idle';
+
+function setZone(m){
+  const lo=(TARGET-m)/MAX_DEG*100,hi=(TARGET+m)/MAX_DEG*100;
+  zoneMark.style.left=lo+'%';zoneMark.style.width=(hi-lo)+'%';
+  marginTxt.textContent=m;
+  const r=44*(m/BASE_MARGIN);
+  zoneFill.setAttribute('r',r);zoneStroke.setAttribute('r',r);
+}
+setZone(margin);
+
+function pressStart(e){e.preventDefault();isHeld=true;holdBtn.classList.add('pressed');}
+function pressEnd(e){e.preventDefault();isHeld=false;holdBtn.classList.remove('pressed');}
+holdBtn.addEventListener('mousedown',pressStart);
+holdBtn.addEventListener('touchstart',pressStart,{passive:false});
+document.addEventListener('mouseup',pressEnd);
+document.addEventListener('touchend',pressEnd);
+document.addEventListener('contextmenu',e=>e.preventDefault());
+
+function wobbleIntensity(){
+  const d=Math.abs(deg-TARGET);
+  return d<=margin?Math.max(0.25,(d/margin)*0.85):Math.min(3.5,d/7);
+}
+function tickWobble(){
+  const i=wobbleIntensity();
+  wobbleVX+=(Math.random()-0.5)*i*1.2;wobbleVY+=(Math.random()-0.5)*i*1.2;
+  wobbleVX-=wobbleX*0.09;wobbleVY-=wobbleY*0.09;
+  wobbleVX*=0.76;wobbleVY*=0.76;
+  wobbleX+=wobbleVX;wobbleY+=wobbleVY;
+  const md=i*20;
+  wobbleX=Math.max(-md,Math.min(md,wobbleX));wobbleY=Math.max(-md,Math.min(md,wobbleY));
+  reticle.setAttribute('transform',`translate(${wobbleX.toFixed(2)},${wobbleY.toFixed(2)})`);
+}
+
+function throwDart(){
+  holdStart=null;holdArc.style.opacity='0';holdArc.setAttribute('stroke-dashoffset',HOLD_CIRC);
+  cooldown=true;
+  const dist=Math.sqrt(wobbleX*wobbleX+wobbleY*wobbleY);
+  let pts,word;
+  if(dist<10){pts=3;word='BULLSEYE';}else if(dist<22){pts=2;word='GREAT SHOT';}else{pts=1;word='SCORED';}
+  score+=pts;scoreNum.textContent=score;
+  const hx=(100+wobbleX).toFixed(1),hy=(100+wobbleY).toFixed(1);
+  const dg=document.createElementNS('http://www.w3.org/2000/svg','g');
+  dg.innerHTML=`<circle cx="${hx}" cy="${hy}" r="3.5" fill="#1a1a1a" opacity="0.8"/>
+    <line x1="${hx}" y1="${hy}" x2="${hx}" y2="${(+hy-10).toFixed(1)}" stroke="#1a1a1a" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>`;
+  dartHits.appendChild(dg);
+  rays.forEach(r=>{r.classList.remove('burst');void r.offsetWidth;r.classList.add('burst');});
+  jointGroup.classList.remove('bounce');void jointGroup.offsetWidth;jointGroup.classList.add('bounce');
+  feedbackLabel.textContent=word;feedbackLabel.style.opacity='1';
+  const f=document.createElement('div');
+  f.className='score-float';f.textContent='+'+pts;
+  f.style.top='32%';f.style.left='58%';
+  f.style.color=pts===3?'#00C4A0':pts===2?'#3A9E8F':'#888';
+  scene.appendChild(f);setTimeout(()=>f.remove(),1200);
+  if(feedbackTimeout)clearTimeout(feedbackTimeout);
+  feedbackTimeout=setTimeout(()=>{
+    feedbackLabel.style.opacity='0';
+    round++;margin=Math.max(2,BASE_MARGIN-Math.floor((round-1)/2));
+    setZone(margin);roundNum.textContent=round;cooldown=false;
+    stateLabel.textContent='Round '+round+' — hold to aim 65°';
+  },1600);
+}
+
+function loop(){
+  if(isHeld){vel+=(TARGET-deg)*0.045;vel*=0.78;}
+  else{vel+=(-deg)*0.06;vel*=0.72;}
+  deg+=vel;deg=Math.max(0,Math.min(MAX_DEG,deg));
+  const dr=Math.round(deg);
+  lowerSeg.style.transform=`rotate(${deg.toFixed(2)}deg)`;
+  angleDisp.textContent=dr+'°';degReadout.textContent=dr+'°';
+  const pct=(deg/MAX_DEG*100).toFixed(1);
+  barFill.style.width=pct+'%';anglePip.style.left=pct+'%';
+  if(isHeld)tickWobble();
+  else{wobbleX*=0.88;wobbleY*=0.88;wobbleVX*=0.7;wobbleVY*=0.7;reticle.setAttribute('transform',`translate(${wobbleX.toFixed(2)},${wobbleY.toFixed(2)})`);}
+  const inZone=!cooldown&&Math.abs(deg-TARGET)<=margin;
+  if(inZone&&isHeld){
+    glowRing.classList.add('active');
+    if(holdStart===null){holdStart=performance.now();holdArc.style.opacity='1';}
+    const el=performance.now()-holdStart;
+    holdArc.setAttribute('stroke-dashoffset',(HOLD_CIRC*(1-Math.min(el/HOLD_MS,1))).toFixed(2));
+    if(el>=HOLD_MS)throwDart();
+    if(lastState!=='holding'){stateLabel.textContent='Steady… hold for 5s';lastState='holding';}
+  } else {
+    glowRing.classList.remove('active');
+    if(holdStart!==null&&!cooldown){holdStart=null;holdArc.style.opacity='0';holdArc.setAttribute('stroke-dashoffset',HOLD_CIRC);}
+    if(!cooldown){
+      if(!isHeld&&deg<2){if(lastState!=='idle'){stateLabel.textContent='Press & hold to flex';lastState='idle';}}
+      else if(isHeld&&deg<TARGET-margin){if(lastState!=='low'){stateLabel.textContent='Loading… keep holding';lastState='low';}}
+      else if(isHeld&&deg>TARGET+margin){if(lastState!=='high'){stateLabel.textContent='Ease back to 65°';lastState='high';}}
+      else if(!isHeld&&deg>2){if(lastState!=='spring'){stateLabel.textContent='Hold to keep it there';lastState='spring';}}
+    }
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
