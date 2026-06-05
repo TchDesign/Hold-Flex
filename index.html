@@ -1,6 +1,14 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROM Dart Game</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;background:transparent;}
+/* hide screen-reader-only elements visually */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 #scene{
   background:#C0C4C8;border-radius:16px;width:100%;aspect-ratio:16/9;
   position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;
@@ -61,6 +69,8 @@
   animation:scoreFloat 1.1s ease-out forwards;font-size:clamp(14px,2vw,20px);
 }
 </style>
+</head>
+<body>
 
 <h2 class="sr-only">Hold-to-aim ROM dart game. Press and hold the button to flex the joint toward 65 degrees. Hold steady in the target zone for 5 seconds to throw a dart.</h2>
 
@@ -274,3 +284,5 @@ function loop(){
 }
 loop();
 </script>
+</body>
+</html>
